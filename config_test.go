@@ -1,183 +1,158 @@
 package tlsconfig_test
 
 import (
+	"bytes"
 	"crypto/tls"
-	"crypto/x509"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
 	"testing"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 
 	"github.com/pivotal-cf/tlsconfig"
 	"github.com/pivotal-cf/tlsconfig/certtest"
 )
 
-func TestTLSConfig(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "TLS Config Suite")
-}
+func TestE2E(t *testing.T) {
+	t.Parallel()
 
-var _ = Describe("generating TLS configurations", func() {
-	var (
-		config  *tls.Config
-		tlsOpts []tlsconfig.TLSOption
+	ca, err := certtest.BuildCA("tlsconfig")
+	if err != nil {
+		t.Fatalf("failed to build CA: %v", err)
+	}
+
+	pool, err := ca.CertPool()
+	if err != nil {
+		t.Fatalf("failed to get CA cert pool: %v", err)
+	}
+
+	serverCrt, err := ca.BuildSignedCertificate("server")
+	if err != nil {
+		t.Fatalf("failed to make server certificate: %v", err)
+	}
+	serverTLSCrt, err := serverCrt.TLSCertificate()
+	if err != nil {
+		t.Fatalf("failed to get tls server certificate: %v", err)
+	}
+
+	clientCrt, err := ca.BuildSignedCertificate("client")
+	if err != nil {
+		t.Fatalf("failed to make client certificate: %v", err)
+	}
+	clientTLSCrt, err := clientCrt.TLSCertificate()
+	if err != nil {
+		t.Fatalf("failed to get tls client certificate: %v", err)
+	}
+
+	// Typically we would share a base configuration but here we're pretending
+	// to be two different services.
+	serverConf := tlsconfig.Build(
+		tlsconfig.WithIdentity(serverTLSCrt),
+	).Server(
+		tlsconfig.WithClientAuthentication(pool),
 	)
 
-	ItCanUseInternalServiceDefaults := func() {
-		Describe("with internal service defaults", func() {
-			aliasedOpts := map[string]tlsconfig.TLSOption{
-				"old pivotal":  tlsconfig.WithPivotalDefaults(),
-				"new internal": tlsconfig.WithInternalServiceDefaults(),
+	clientConf := tlsconfig.Build(
+		tlsconfig.WithIdentity(clientTLSCrt),
+	).Client(
+		tlsconfig.WithAuthority(pool),
+	)
+
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "hello, world!")
+	}))
+	s.TLS = serverConf
+	s.StartTLS()
+	defer s.Close()
+
+	transport := &http.Transport{TLSClientConfig: clientConf}
+	client := &http.Client{Transport: transport}
+
+	res, err := client.Get(s.URL)
+	if err != nil {
+		t.Fatalf("failed to make request: %v", err)
+	}
+	bs, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read body: %v", err)
+	}
+	res.Body.Close()
+
+	if have, want := bs, []byte("hello, world!"); !bytes.Equal(have, want) {
+		t.Errorf("unexpected body returned; have: %q, want: %q", have, want)
+	}
+}
+
+func TestInternalDefaults(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	t.Parallel()
+
+	var tcs = []struct {
+		name   string
+		config *tls.Config
+	}{
+		{
+			name:   "pivotal (client)",
+			config: tlsconfig.Build(tlsconfig.WithPivotalDefaults()).Client(),
+		},
+		{
+			name:   "pivotal (server)",
+			config: tlsconfig.Build(tlsconfig.WithPivotalDefaults()).Server(),
+		},
+		{
+			name:   "internal (client)",
+			config: tlsconfig.Build(tlsconfig.WithInternalServiceDefaults()).Client(),
+		},
+		{
+			name:   "internal (server)",
+			config: tlsconfig.Build(tlsconfig.WithInternalServiceDefaults()).Server(),
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc // capture variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := tc.config
+
+			if have, want := config.PreferServerCipherSuites, true; have != want {
+				t.Errorf("expected server cipher suites to be preferred; have: %t", have)
 			}
 
-			for name, opt := range aliasedOpts {
-				Context("with the "+name+" way of doing things", func() {
-					BeforeEach(func() {
-						tlsOpts = []tlsconfig.TLSOption{opt}
-					})
+			if have, want := config.MinVersion, uint16(tls.VersionTLS12); have != want {
+				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
+			}
 
-					It("makes sure that the server is the source of truth for cipher suites", func() {
-						Expect(config.PreferServerCipherSuites).To(BeTrue())
-					})
+			wantSuites := []uint16{
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			}
+			if have, want := config.CipherSuites, wantSuites; !reflect.DeepEqual(have, want) {
+				t.Errorf("expected a different set of ciphersuites; want: %v, have: %v", want, have)
+			}
 
-					It("enforces the use of TLS 1.2", func() {
-						Expect(config.MinVersion).To(Equal(uint16(tls.VersionTLS12)))
-					})
+			h2Ciphersuite := tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+			if !contains(config.CipherSuites, h2Ciphersuite) {
+				// https://http2.github.io/http2-spec/#rfc.section.9.2.2
+				t.Errorf("expected the http2 required ciphersuite (%v) to be present; have: %v", h2Ciphersuite, config.CipherSuites)
+			}
 
-					It("uses approved cipher suites", func() {
-						Expect(config.CipherSuites).To(Equal([]uint16{
-							tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-							tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-						}))
-					})
-
-					It("includes the suite which is required by the HTTP/2 spec", func() {
-						// https://http2.github.io/http2-spec/#rfc.section.9.2.2
-						Expect(config.CipherSuites).To(ContainElement(tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256))
-					})
-
-					It("uses approved curves", func() {
-						Expect(config.CurvePreferences).To(Equal([]tls.CurveID{
-							tls.CurveP384,
-							tls.CurveP256,
-						}))
-					})
-				})
+			wantCurves := []tls.CurveID{tls.CurveP384, tls.CurveP256}
+			if have, want := config.CurvePreferences, wantCurves; !reflect.DeepEqual(have, want) {
+				t.Errorf("expected a different set of curve preferences; want: %v, have: %v", want, have)
 			}
 		})
 	}
+}
 
-	ItCanBeAssignedAnIdentity := func() {
-		Describe("with a client identity", func() {
-			var tlsCert tls.Certificate
-
-			BeforeEach(func() {
-				ca, err := certtest.BuildCA("tlsconfig")
-				Expect(err).NotTo(HaveOccurred())
-
-				cert, err := ca.BuildSignedCertificate("tlsconfig")
-				Expect(err).NotTo(HaveOccurred())
-
-				tlsCert, err = cert.TLSCertificate()
-				Expect(err).NotTo(HaveOccurred())
-
-				tlsOpts = []tlsconfig.TLSOption{
-					tlsconfig.WithIdentity(tlsCert),
-				}
-			})
-
-			It("sets the certificates", func() {
-				Expect(config.Certificates).To(ConsistOf(tlsCert))
-			})
-		})
+func contains(haystack []uint16, needle uint16) bool {
+	for _, e := range haystack {
+		if e == needle {
+			return true
+		}
 	}
 
-	Describe("server configurations", func() {
-		var (
-			serverOpts []tlsconfig.ServerOption
-		)
-
-		JustBeforeEach(func() {
-			config = tlsconfig.Build(tlsOpts...).Server(serverOpts...)
-		})
-
-		ItCanUseInternalServiceDefaults()
-		ItCanBeAssignedAnIdentity()
-
-		Describe("with client authentication", func() {
-			var pool *x509.CertPool
-
-			BeforeEach(func() {
-				ca, err := certtest.BuildCA("tlsconfig")
-				Expect(err).NotTo(HaveOccurred())
-
-				pool, err = ca.CertPool()
-				Expect(err).NotTo(HaveOccurred())
-
-				serverOpts = []tlsconfig.ServerOption{
-					tlsconfig.WithClientAuthentication(pool),
-				}
-			})
-
-			It("makes sure we require client authentication", func() {
-				Expect(config.ClientAuth).To(Equal(tls.RequireAndVerifyClientCert))
-			})
-
-			It("sets the client authority", func() {
-				Expect(config.ClientCAs).NotTo(BeNil())
-			})
-		})
-	})
-
-	Describe("client configurations", func() {
-		var (
-			clientOpts []tlsconfig.ClientOption
-		)
-
-		JustBeforeEach(func() {
-			config = tlsconfig.Build(tlsOpts...).Client(clientOpts...)
-		})
-
-		ItCanUseInternalServiceDefaults()
-		ItCanBeAssignedAnIdentity()
-
-		Describe("with authority", func() {
-			var pool *x509.CertPool
-
-			BeforeEach(func() {
-				ca, err := certtest.BuildCA("tlsconfig")
-				Expect(err).NotTo(HaveOccurred())
-
-				pool, err = ca.CertPool()
-				Expect(err).NotTo(HaveOccurred())
-
-				clientOpts = []tlsconfig.ClientOption{
-					tlsconfig.WithAuthority(pool),
-				}
-			})
-
-			It("sets the client authority", func() {
-				Expect(config.RootCAs).NotTo(BeNil())
-			})
-		})
-	})
-
-	Describe("configuration modification", func() {
-		It("does not affect other configurations", func() {
-			base := tlsconfig.Build()
-			client := base.Client()
-
-			ca, err := certtest.BuildCA("tlsconfig")
-			Expect(err).NotTo(HaveOccurred())
-
-			pool, err := ca.CertPool()
-			Expect(err).NotTo(HaveOccurred())
-
-			server := base.Server(
-				tlsconfig.WithClientAuthentication(pool),
-			)
-
-			Expect(client.ClientAuth).NotTo(Equal(server.ClientAuth))
-		})
-	})
-})
+	return false
+}
