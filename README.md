@@ -4,7 +4,7 @@
 
 ## about
 
-Pivotal has internal requirements and guidelines as to the TLS configurations
+There are requirements and guidelines for the TLS configurations
 we'd like to use for our internal services. This library stays up to date with
 those internal requirements so that services just need to link against this.
 
