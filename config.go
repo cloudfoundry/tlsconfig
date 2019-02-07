@@ -1,12 +1,11 @@
 // Package tlsconfig provides opintionated helpers for building tls.Configs.
-// It keeps up to date with internal Pivotal best practices and external
+// It keeps up to date with internal CloudFoundry best practices and external
 // industry best practices.
 package tlsconfig
 
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"log"
 )
 
 // Config represents a half configured TLS configuration. It can be made usable
@@ -100,16 +99,6 @@ func WithInternalServiceDefaults() TLSOption {
 			tls.CurveP256,
 		}
 	}
-}
-
-// WithPivotalDefaults is the same as WithInternalServiceDefaults and is only
-// provided for backwards compatibility. These configuration options are now
-// used beyond just Pivotal.
-//
-// Deprecated: Use WithInternalServiceDefaults() instead.
-func WithPivotalDefaults() TLSOption {
-	log.Println("DEPRECATED! tlsconfig: Please use WithInternalServiceDefaults() rather than WithPivotalDefaults()")
-	return WithInternalServiceDefaults()
 }
 
 // WithIdentity sets the identity of the server or client which will be

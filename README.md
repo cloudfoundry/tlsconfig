@@ -13,9 +13,11 @@ to build valid PKIs for test.
 
 ## usage
 
+**Note**: This repository should be imported as `code.cloudfoundry.org/tlsconfig`
+
 See [GoDoc][godoc].
 
-[godoc]: https://godoc.org/github.com/pivotal-cf/tlsconfig
+[godoc]: https://godoc.org/code.cloudfoundry.org/tlsconfig
 
 ## getting help
 

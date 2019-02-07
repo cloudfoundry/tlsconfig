@@ -11,8 +11,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/pivotal-cf/tlsconfig"
-	"github.com/pivotal-cf/tlsconfig/certtest"
+	"code.cloudfoundry.org/tlsconfig"
+	"code.cloudfoundry.org/tlsconfig/certtest"
 )
 
 func TestE2E(t *testing.T) {
@@ -93,14 +93,6 @@ func TestInternalDefaults(t *testing.T) {
 		name   string
 		config *tls.Config
 	}{
-		{
-			name:   "pivotal (client)",
-			config: tlsconfig.Build(tlsconfig.WithPivotalDefaults()).Client(),
-		},
-		{
-			name:   "pivotal (server)",
-			config: tlsconfig.Build(tlsconfig.WithPivotalDefaults()).Server(),
-		},
 		{
 			name:   "internal (client)",
 			config: tlsconfig.Build(tlsconfig.WithInternalServiceDefaults()).Client(),
