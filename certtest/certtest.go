@@ -148,6 +148,21 @@ func (c *Certificate) TLSCertificate() (tls.Certificate, error) {
 	return tls.X509KeyPair(certBytes, keyBytes)
 }
 
+// CertificatePEMAndPrivateKey returns the certificate as a PEM encoded bytes and the private key bytes.
+func (c *Certificate) CertificatePEMAndPrivateKey() ([]byte, []byte, error) {
+	certBytes, err := c.cert.Export()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyBytes, err := c.key.ExportPrivate()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return certBytes, keyBytes, nil
+}
+
 type signOptions struct {
 	domains []string
 	ips     []net.IP

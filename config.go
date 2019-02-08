@@ -6,6 +6,8 @@ package tlsconfig
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"io/ioutil"
 )
 
 // Config represents a half configured TLS configuration. It can be made usable
@@ -16,13 +18,13 @@ type Config struct {
 
 // TLSOption can be used to configure a TLS configuration for both clients and
 // servers.
-type TLSOption func(*tls.Config)
+type TLSOption func(*tls.Config) error
 
 // ServerOption can be used to configure a TLS configuration for a server.
-type ServerOption func(*tls.Config)
+type ServerOption func(*tls.Config) error
 
 // ClientOption can be used to configure a TLS configuration for a client.
-type ClientOption func(*tls.Config)
+type ClientOption func(*tls.Config) error
 
 // Build creates a half configured TLS configuration.
 func Build(opts ...TLSOption) Config {
@@ -35,36 +37,44 @@ func Build(opts ...TLSOption) Config {
 // HTTP, etc.). The options are applied in order. It is possible for a later
 // option to undo the configuration that an earlier one applied. Care must be
 // taken.
-func (c Config) Server(opts ...ServerOption) *tls.Config {
+func (c Config) Server(opts ...ServerOption) (*tls.Config, error) {
 	config := &tls.Config{}
 
 	for _, opt := range c.opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, opt := range opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 
-	return config
+	return config, nil
 }
 
 // Client can be used to build a TLS configuration suitable for clients (GRPC,
 // HTTP, etc.). The options are applied in order. It is possible for a later
 // option to undo the configuration that an earlier one applied. Care must be
 // taken.
-func (c Config) Client(opts ...ClientOption) *tls.Config {
+func (c Config) Client(opts ...ClientOption) (*tls.Config, error) {
 	config := &tls.Config{}
 
 	for _, opt := range c.opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, opt := range opts {
-		opt(config)
+		if err := opt(config); err != nil {
+			return nil, err
+		}
 	}
 
-	return config
+	return config, nil
 }
 
 // WithInternalServiceDefaults modifies a *tls.Config that is suitable for use
@@ -80,7 +90,7 @@ func (c Config) Client(opts ...ClientOption) *tls.Config {
 // not support any ECC signing) it is not possible to use ECC keys with this
 // option.
 func WithInternalServiceDefaults() TLSOption {
-	return func(c *tls.Config) {
+	return func(c *tls.Config) error {
 		c.MinVersion = tls.VersionTLS12
 		c.PreferServerCipherSuites = true
 		c.CipherSuites = []uint16{
@@ -98,30 +108,86 @@ func WithInternalServiceDefaults() TLSOption {
 			// then we can drop this.
 			tls.CurveP256,
 		}
+		return nil
 	}
 }
 
 // WithIdentity sets the identity of the server or client which will be
 // presented to its peer upon connection.
 func WithIdentity(cert tls.Certificate) TLSOption {
-	return func(c *tls.Config) {
+	return func(c *tls.Config) error {
 		c.Certificates = []tls.Certificate{cert}
+		return nil
+	}
+}
+
+// WithIdentityFromFile sets the identity of the server or client which will be
+// presented to its peer upon connection from provided cert and key files.
+func WithIdentityFromFile(certPath string, keyPath string) TLSOption {
+	return func(c *tls.Config) error {
+		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return fmt.Errorf("failed to load keypair: %s", err.Error())
+		}
+		c.Certificates = []tls.Certificate{cert}
+		return nil
 	}
 }
 
 // WithClientAuthentication makes the server verify that all clients present an
 // identity that can be validated by the certificate pool provided.
 func WithClientAuthentication(authority *x509.CertPool) ServerOption {
-	return func(c *tls.Config) {
+	return func(c *tls.Config) error {
 		c.ClientAuth = tls.RequireAndVerifyClientCert
 		c.ClientCAs = authority
+		return nil
 	}
 }
 
-// WithAuthority makes the server verify that all clients present an identity
+// WithClientAuthenticationFromFile makes the server verify that all clients present an
+// identity that can be validated by the CA file provided.
+func WithClientAuthenticationFromFile(caPath string) ServerOption {
+	return func(c *tls.Config) error {
+		caBytes, err := ioutil.ReadFile(caPath)
+		if err != nil {
+			return fmt.Errorf("failed read ca cert file: %s", err.Error())
+		}
+
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM(caBytes); !ok {
+			return fmt.Errorf("Unable to load caCert")
+		}
+
+		c.ClientAuth = tls.RequireAndVerifyClientCert
+		c.ClientCAs = caCertPool
+		return nil
+	}
+}
+
+// WithAuthority makes the client verify that the server presents an identity
 // that can be validated by the certificate pool provided.
 func WithAuthority(authority *x509.CertPool) ClientOption {
-	return func(c *tls.Config) {
+	return func(c *tls.Config) error {
 		c.RootCAs = authority
+		return nil
+	}
+}
+
+// WithAuthorityFromFile makes the client verify that the server presents an identity
+// that can be validated by the CA file provided.
+func WithAuthorityFromFile(caPath string) ClientOption {
+	return func(c *tls.Config) error {
+		caBytes, err := ioutil.ReadFile(caPath)
+		if err != nil {
+			return fmt.Errorf("failed read ca cert file: %s", err.Error())
+		}
+
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM(caBytes); !ok {
+			return fmt.Errorf("Unable to load caCert")
+		}
+
+		c.RootCAs = caCertPool
+		return nil
 	}
 }
