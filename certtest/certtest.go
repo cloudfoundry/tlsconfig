@@ -88,7 +88,7 @@ func (a *Authority) BuildSignedCertificate(name string, options ...SignOption) (
 		opts.apply(o)
 	}
 
-	csr, err := pkix.CreateCertificateSigningRequest(key, ou, opts.ips, opts.domains, o, country, province, city, name)
+	csr, err := pkix.CreateCertificateSigningRequest(key, ou, opts.ips, opts.domains, nil, o, country, province, city, name)
 	if err != nil {
 		return nil, err
 	}
