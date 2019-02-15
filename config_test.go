@@ -17,6 +17,11 @@ import (
 	"code.cloudfoundry.org/tlsconfig/certtest"
 )
 
+type buildResult struct {
+	name string
+	err  error
+}
+
 func TestE2E(t *testing.T) {
 	t.Parallel()
 
@@ -74,24 +79,29 @@ func TestE2E(t *testing.T) {
 func TestE2EFromFile(t *testing.T) {
 	t.Parallel()
 
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
 	ca, err := certtest.BuildCA("tlsconfig")
 	if err != nil {
 		t.Fatalf("failed to build CA: %v", err)
 	}
-	caFile, err := writeCAToTempFile(ca)
+	caFile, err := writeCAToTempFile(tempDir, ca)
 	if err != nil {
 		t.Fatalf("failed to write CA file: %v", err)
 	}
-	defer os.Remove(caFile)
 
-	serverCertFile, serverKeyFile, err := generateKeypairToTempFilesFromCA(ca)
+	serverCertFile, serverKeyFile, err := generateKeypairToTempFilesFromCA(tempDir, ca)
 	if err != nil {
-		t.Fatalf("failed to generate server keypair: %v", err)
+		t.Fatalf("failed to generate certificate keypair: %v", err)
 	}
 
-	clientCertFile, clientKeyFile, err := generateKeypairToTempFilesFromCA(ca)
+	clientCertFile, clientKeyFile, err := generateKeypairToTempFilesFromCA(tempDir, ca)
 	if err != nil {
-		t.Fatalf("failed to generate server keypair: %v", err)
+		t.Fatalf("failed to generate certificate keypair: %v", err)
 	}
 
 	// Typically we would share a base configuration but here we're pretending
@@ -115,232 +125,6 @@ func TestE2EFromFile(t *testing.T) {
 	}
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
-}
-
-func testClientServerTLSConnection(t *testing.T, clientConf, serverConf *tls.Config) {
-	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "hello, world!")
-	}))
-	s.TLS = serverConf
-	s.StartTLS()
-	defer s.Close()
-
-	transport := &http.Transport{TLSClientConfig: clientConf}
-	client := &http.Client{Transport: transport}
-
-	res, err := client.Get(s.URL)
-	if err != nil {
-		t.Fatalf("failed to make request: %v", err)
-	}
-	bs, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("failed to read body: %v", err)
-	}
-	res.Body.Close()
-
-	if have, want := bs, []byte("hello, world!"); !bytes.Equal(have, want) {
-		t.Errorf("unexpected body returned; have: %q, want: %q", have, want)
-	}
-}
-
-type buildResult struct {
-	name string
-	err  error
-}
-
-func TestLoadKeypairFails(t *testing.T) {
-	t.Parallel()
-
-	certFile, keyFile, caFile, err := generateKeypairAndCAToTempFiles()
-	if err != nil {
-		t.Fatalf("failed generating keypair and ca files: %v", err)
-	}
-	fmt.Println(certFile, keyFile, caFile)
-	defer func() {
-		os.Remove(certFile)
-		os.Remove(keyFile)
-		os.Remove(caFile)
-	}()
-
-	// generate file invalid for use as cert or key
-	invalidFile, err := ioutil.TempFile("", "invalid")
-	if err != nil {
-		t.Fatalf("failed to create temp invalid-key: %v", err)
-	}
-	defer invalidFile.Close()
-
-	if err := ioutil.WriteFile(invalidFile.Name(), []byte("invalid"), 0666); err != nil {
-		t.Fatalf("failed to write invalid file: %v", err)
-	}
-	defer os.Remove(invalidFile.Name())
-
-	keypairs := []struct {
-		name     string
-		certFile string
-		keyFile  string
-	}{
-		{name: "cert file missing", certFile: "does not exist", keyFile: keyFile},
-		{name: "cert file invalid", certFile: invalidFile.Name(), keyFile: keyFile},
-		{name: "key file missing", certFile: certFile, keyFile: "does not exist"},
-		{name: "key file invalid", certFile: certFile, keyFile: invalidFile.Name()},
-	}
-
-	var buildResults []buildResult
-	for _, keypair := range keypairs {
-		_, err := tlsconfig.Build(tlsconfig.WithIdentityFromFile(keypair.certFile, keypair.keyFile)).Client()
-		buildResults = append(buildResults, buildResult{keypair.name + " (client)", err})
-		_, err = tlsconfig.Build(tlsconfig.WithIdentityFromFile(keypair.certFile, keypair.keyFile)).Server()
-		buildResults = append(buildResults, buildResult{keypair.name + " (server)", err})
-	}
-
-	for _, br := range buildResults {
-		br := br // capture variable
-		t.Run(br.name, func(t *testing.T) {
-			t.Parallel()
-
-			if br.err == nil {
-				t.Fatal("building config should have errored")
-			}
-			if !strings.HasPrefix(br.err.Error(), "failed to load keypair") {
-				t.Fatalf("unexpected error prefix returned; have: %v, want: 'failed to load keypair'", br.err)
-			}
-		})
-	}
-}
-
-func TestLoadCAFails(t *testing.T) {
-	t.Parallel()
-
-	_, clientCAErr := tlsconfig.Build().Client(tlsconfig.WithAuthorityFromFile("does not exist"))
-	_, serverCAErr := tlsconfig.Build().Server(tlsconfig.WithClientAuthenticationFromFile("does not exist"))
-
-	buildResults := []buildResult{
-		{name: "CA cert file missing (client)", err: clientCAErr},
-		{name: "CA cert file missing (server)", err: serverCAErr},
-	}
-
-	for _, br := range buildResults {
-		br := br // capture variable
-		t.Run(br.name, func(t *testing.T) {
-			t.Parallel()
-
-			if br.err == nil {
-				t.Fatal("building config should have errored")
-			}
-			if !strings.HasPrefix(br.err.Error(), "failed read ca cert file") {
-				t.Fatalf("unexpected error prefix returned; have: %v, want: 'failed read ca cert file", br.err)
-			}
-		})
-	}
-}
-
-func generateKeypairAndCAToTempFiles() (string, string, string, error) {
-	ca, err := certtest.BuildCA("tlsconfig")
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to build CA: %s", err)
-	}
-
-	caFile, err := writeCAToTempFile(ca)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	certFile, keyFile, err := generateKeypairToTempFilesFromCA(ca)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	return certFile, keyFile, caFile, nil
-}
-
-func writeCAToTempFile(ca *certtest.Authority) (string, error) {
-	caBytes, err := ca.CertificatePEM()
-	if err != nil {
-		return "", fmt.Errorf("failed to get CA PEM encoding: %s", err)
-	}
-
-	caFile, err := ioutil.TempFile("", "CA")
-	if err != nil {
-		return "", fmt.Errorf("failed to create temp CA file: %s", err)
-	}
-	defer caFile.Close()
-
-	if err := ioutil.WriteFile(caFile.Name(), caBytes, 0666); err != nil {
-		return "", fmt.Errorf("failed to write CA file: %s", err)
-	}
-
-	return caFile.Name(), nil
-}
-
-func generateKeypairToTempFilesFromCA(ca *certtest.Authority) (string, string, error) {
-	cert, err := ca.BuildSignedCertificate("cert")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to make certificate keypair: %s", err)
-	}
-
-	certBytes, keyBytes, err := cert.CertificatePEMAndPrivateKey()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get cert and key bytes: %s", err)
-	}
-
-	keyFile, err := ioutil.TempFile("", "key")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create temp key file: %s", err)
-	}
-	defer keyFile.Close()
-
-	if err := ioutil.WriteFile(keyFile.Name(), keyBytes, 0666); err != nil {
-		return "", "", fmt.Errorf("failed to write key file: %s", err)
-	}
-
-	certFile, err := ioutil.TempFile("", "cert")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create temp cert file: %s", err)
-	}
-	defer certFile.Close()
-
-	if err := ioutil.WriteFile(certFile.Name(), certBytes, 0666); err != nil {
-		return "", "", fmt.Errorf("failed to write cert file: %s", err)
-	}
-
-	return certFile.Name(), keyFile.Name(), nil
-}
-
-func TestCAInvalidFails(t *testing.T) {
-	t.Parallel()
-
-	invalidCAFile, err := ioutil.TempFile("", "invalid-CA")
-	if err != nil {
-		t.Fatalf("failed to create temp invalid-CA: %v", err)
-	}
-	defer invalidCAFile.Close()
-
-	if err := ioutil.WriteFile(invalidCAFile.Name(), []byte("invalid"), 0666); err != nil {
-		t.Fatalf("failed to write invalid-CA file: %v", err)
-	}
-	defer os.Remove(invalidCAFile.Name())
-
-	_, clientCAErr := tlsconfig.Build().Client(tlsconfig.WithAuthorityFromFile(invalidCAFile.Name()))
-	_, serverCAErr := tlsconfig.Build().Server(tlsconfig.WithClientAuthenticationFromFile(invalidCAFile.Name()))
-
-	buildResults := []buildResult{
-		{name: "CA cert file invalid (client)", err: clientCAErr},
-		{name: "CA cert file invalid (server)", err: serverCAErr},
-	}
-
-	for _, br := range buildResults {
-		br := br // capture variable
-		t.Run(br.name, func(t *testing.T) {
-			t.Parallel()
-
-			if br.err == nil {
-				t.Fatal("building config should have errored")
-			}
-			if !strings.HasPrefix(br.err.Error(), "Unable to load caCert") {
-				t.Fatalf("unexpected error prefix returned; have: %v, want: 'Unable to load caCert", br.err)
-			}
-		})
-	}
 }
 
 func TestInternalDefaults(t *testing.T) {
@@ -404,6 +188,215 @@ func TestInternalDefaults(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLoadKeypairFails(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	ca, err := certtest.BuildCA("tlsconfig")
+	if err != nil {
+		t.Fatalf("failed to build CA: %v", err)
+	}
+
+	certFile, keyFile, err := generateKeypairToTempFilesFromCA(tempDir, ca)
+	if err != nil {
+		t.Fatalf("failed to generate certificate keypair: %v", err)
+	}
+
+	// generate file invalid for use as cert or key
+	invalidFile, err := ioutil.TempFile(tempDir, "invalid")
+	if err != nil {
+		t.Fatalf("failed to create temp invalid-key: %v", err)
+	}
+	defer invalidFile.Close()
+
+	if err := ioutil.WriteFile(invalidFile.Name(), []byte("invalid"), 0666); err != nil {
+		t.Fatalf("failed to write invalid file: %v", err)
+	}
+
+	keypairs := []struct {
+		name     string
+		certFile string
+		keyFile  string
+	}{
+		{name: "cert file missing", certFile: "does not exist", keyFile: keyFile},
+		{name: "cert file invalid", certFile: invalidFile.Name(), keyFile: keyFile},
+		{name: "key file missing", certFile: certFile, keyFile: "does not exist"},
+		{name: "key file invalid", certFile: certFile, keyFile: invalidFile.Name()},
+	}
+
+	var buildResults []buildResult
+	for _, keypair := range keypairs {
+		_, err := tlsconfig.Build(tlsconfig.WithIdentityFromFile(keypair.certFile, keypair.keyFile)).Client()
+		buildResults = append(buildResults, buildResult{keypair.name + " (client)", err})
+		_, err = tlsconfig.Build(tlsconfig.WithIdentityFromFile(keypair.certFile, keypair.keyFile)).Server()
+		buildResults = append(buildResults, buildResult{keypair.name + " (server)", err})
+	}
+
+	errStr := "failed to load keypair"
+	for _, br := range buildResults {
+		br := br // capture variable
+		t.Run(br.name, func(t *testing.T) {
+			t.Parallel()
+
+			if br.err == nil {
+				t.Fatal("building config should have errored")
+			}
+			if !strings.HasPrefix(br.err.Error(), errStr) {
+				t.Fatalf("unexpected error prefix returned; have: %v, want: '%s'", br.err, errStr)
+			}
+		})
+	}
+}
+
+func TestLoadCAFails(t *testing.T) {
+	t.Parallel()
+
+	_, clientCAErr := tlsconfig.Build().Client(tlsconfig.WithAuthorityFromFile("does not exist"))
+	_, serverCAErr := tlsconfig.Build().Server(tlsconfig.WithClientAuthenticationFromFile("does not exist"))
+
+	buildResults := []buildResult{
+		{name: "CA cert file missing (client)", err: clientCAErr},
+		{name: "CA cert file missing (server)", err: serverCAErr},
+	}
+
+	errStr := "failed to read file"
+	for _, br := range buildResults {
+		br := br // capture variable
+		t.Run(br.name, func(t *testing.T) {
+			t.Parallel()
+
+			if br.err == nil {
+				t.Fatal("building config should have errored")
+			}
+			if !strings.HasPrefix(br.err.Error(), errStr) {
+				t.Fatalf("unexpected error prefix returned; have: %v, want: '%s'", br.err, errStr)
+			}
+		})
+	}
+}
+
+func TestCAInvalidFails(t *testing.T) {
+	t.Parallel()
+
+	invalidCAFile, err := ioutil.TempFile("", "invalid-CA")
+	if err != nil {
+		t.Fatalf("failed to create temp invalid-CA: %v", err)
+	}
+	defer invalidCAFile.Close()
+
+	if err := ioutil.WriteFile(invalidCAFile.Name(), []byte("invalid"), 0666); err != nil {
+		t.Fatalf("failed to write invalid-CA file: %v", err)
+	}
+	defer os.Remove(invalidCAFile.Name())
+
+	_, clientCAErr := tlsconfig.Build().Client(tlsconfig.WithAuthorityFromFile(invalidCAFile.Name()))
+	_, serverCAErr := tlsconfig.Build().Server(tlsconfig.WithClientAuthenticationFromFile(invalidCAFile.Name()))
+
+	buildResults := []buildResult{
+		{name: "CA cert file invalid (client)", err: clientCAErr},
+		{name: "CA cert file invalid (server)", err: serverCAErr},
+	}
+
+	errStr := "unable to load CA certificate at"
+	for _, br := range buildResults {
+		br := br // capture variable
+		t.Run(br.name, func(t *testing.T) {
+			t.Parallel()
+
+			if br.err == nil {
+				t.Fatal("building config should have errored")
+			}
+			if !strings.HasPrefix(br.err.Error(), errStr) {
+				t.Fatalf("unexpected error prefix returned; have: %v, want: '%s'", br.err, errStr)
+			}
+		})
+	}
+}
+
+func testClientServerTLSConnection(t *testing.T, clientConf, serverConf *tls.Config) {
+	s := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "hello, world!")
+	}))
+	s.TLS = serverConf
+	s.StartTLS()
+	defer s.Close()
+
+	transport := &http.Transport{TLSClientConfig: clientConf}
+	client := &http.Client{Transport: transport}
+
+	res, err := client.Get(s.URL)
+	if err != nil {
+		t.Fatalf("failed to make request: %v", err)
+	}
+	bs, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read body: %v", err)
+	}
+	res.Body.Close()
+
+	if have, want := bs, []byte("hello, world!"); !bytes.Equal(have, want) {
+		t.Errorf("unexpected body returned; have: %q, want: %q", have, want)
+	}
+}
+
+func writeCAToTempFile(tempDir string, ca *certtest.Authority) (string, error) {
+	caBytes, err := ca.CertificatePEM()
+	if err != nil {
+		return "", fmt.Errorf("failed to get CA PEM encoding: %s", err)
+	}
+
+	caFile, err := ioutil.TempFile(tempDir, "CA")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp CA file: %s", err)
+	}
+	defer caFile.Close()
+
+	if err := ioutil.WriteFile(caFile.Name(), caBytes, 0666); err != nil {
+		return "", fmt.Errorf("failed to write CA file: %s", err)
+	}
+
+	return caFile.Name(), nil
+}
+
+func generateKeypairToTempFilesFromCA(tempDir string, ca *certtest.Authority) (string, string, error) {
+	cert, err := ca.BuildSignedCertificate("cert")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to make certificate keypair: %s", err)
+	}
+
+	certBytes, keyBytes, err := cert.CertificatePEMAndPrivateKey()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get cert and key bytes: %s", err)
+	}
+
+	keyFile, err := ioutil.TempFile(tempDir, "key")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create temp key file: %s", err)
+	}
+	defer keyFile.Close()
+
+	if err := ioutil.WriteFile(keyFile.Name(), keyBytes, 0666); err != nil {
+		return "", "", fmt.Errorf("failed to write key file: %s", err)
+	}
+
+	certFile, err := ioutil.TempFile(tempDir, "cert")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create temp cert file: %s", err)
+	}
+	defer certFile.Close()
+
+	if err := ioutil.WriteFile(certFile.Name(), certBytes, 0666); err != nil {
+		return "", "", fmt.Errorf("failed to write cert file: %s", err)
+	}
+
+	return certFile.Name(), keyFile.Name(), nil
 }
 
 func contains(haystack []uint16, needle uint16) bool {

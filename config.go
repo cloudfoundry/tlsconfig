@@ -150,12 +150,12 @@ func WithClientAuthenticationFromFile(caPath string) ServerOption {
 	return func(c *tls.Config) error {
 		caBytes, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return fmt.Errorf("failed read ca cert file: %s", err.Error())
+			return fmt.Errorf("failed to read file %s: %s", caPath, err.Error())
 		}
 
 		caCertPool := x509.NewCertPool()
 		if ok := caCertPool.AppendCertsFromPEM(caBytes); !ok {
-			return fmt.Errorf("Unable to load caCert")
+			return fmt.Errorf("unable to load CA certificate at %s", caPath)
 		}
 
 		c.ClientAuth = tls.RequireAndVerifyClientCert
@@ -179,12 +179,12 @@ func WithAuthorityFromFile(caPath string) ClientOption {
 	return func(c *tls.Config) error {
 		caBytes, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return fmt.Errorf("failed read ca cert file: %s", err.Error())
+			return fmt.Errorf("failed to read file %s: %s", caPath, err.Error())
 		}
 
 		caCertPool := x509.NewCertPool()
 		if ok := caCertPool.AppendCertsFromPEM(caBytes); !ok {
-			return fmt.Errorf("Unable to load caCert")
+			return fmt.Errorf("unable to load CA certificate at %s", caPath)
 		}
 
 		c.RootCAs = caCertPool
