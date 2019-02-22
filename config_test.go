@@ -181,11 +181,6 @@ func TestInternalDefaults(t *testing.T) {
 				// https://http2.github.io/http2-spec/#rfc.section.9.2.2
 				t.Errorf("expected the http2 required ciphersuite (%v) to be present; have: %v", h2Ciphersuite, config.CipherSuites)
 			}
-
-			wantCurves := []tls.CurveID{tls.CurveP384, tls.CurveP256}
-			if have, want := config.CurvePreferences, wantCurves; !reflect.DeepEqual(have, want) {
-				t.Errorf("expected a different set of curve preferences; want: %v, have: %v", want, have)
-			}
 		})
 	}
 }

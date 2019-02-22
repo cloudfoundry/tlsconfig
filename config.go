@@ -97,17 +97,6 @@ func WithInternalServiceDefaults() TLSOption {
 			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 		}
-		c.CurvePreferences = []tls.CurveID{
-			tls.CurveP384,
-
-			// XXX: This curve is not DoD certified as of the "Commercial National
-			// Security Algorithm Suite and Quantum Computing FAQ" document but was
-			// included in Suite B. As this is not an egregious violation and there are
-			// third-party libraries (gRPC) which hard-code this value it is included
-			// here as a fallback option. If libraries eventually adopt the above curve
-			// then we can drop this.
-			tls.CurveP256,
-		}
 		return nil
 	}
 }
