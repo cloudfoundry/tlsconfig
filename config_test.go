@@ -23,6 +23,8 @@ type buildResult struct {
 }
 
 func TestE2E(t *testing.T) {
+	t.Parallel()
+
 	ca, err := certtest.BuildCA("tlsconfig")
 	if err != nil {
 		t.Fatalf("failed to build CA: %v", err)
@@ -50,8 +52,6 @@ func TestE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get tls client certificate: %v", err)
 	}
-
-	t.Parallel()
 
 	// Typically we would share a base configuration but here we're pretending
 	// to be two different services.
@@ -186,6 +186,8 @@ func TestInternalDefaults(t *testing.T) {
 }
 
 func TestLoadKeypairFails(t *testing.T) {
+	t.Parallel()
+
 	tempDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
@@ -201,8 +203,6 @@ func TestLoadKeypairFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to generate certificate keypair: %v", err)
 	}
-
-	t.Parallel()
 
 	// generate file invalid for use as cert or key
 	invalidFile, err := ioutil.TempFile(tempDir, "invalid")
