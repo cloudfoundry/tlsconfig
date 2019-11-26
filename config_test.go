@@ -253,6 +253,10 @@ func TestInternalDefaults(t *testing.T) {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
 			}
 
+			if have, want := config.MaxVersion, uint16(tls.VersionTLS12); have != want {
+				t.Errorf("expected TLS 1.2 to be the maximum version; want: %v, have: %v", want, have)
+			}
+
 			wantSuites := []uint16{
 				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
