@@ -3,6 +3,7 @@ package tlsconfig_test
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -128,6 +129,54 @@ func TestE2EFromFile(t *testing.T) {
 	}
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
+}
+
+func TestWithSystemCertPool(t *testing.T) {
+	config := tlsconfig.Config{}
+	tlsConfig, err := config.Client(tlsconfig.WithSystemCertPool())
+	if err != nil {
+		t.Fatalf("failed to create system cert pool: %v", err)
+	}
+	systemCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("failed to load system cert pool: %v", err)
+	}
+	systemCertSize := len(systemCertPool.Subjects())
+
+	if len(tlsConfig.RootCAs.Subjects()) != systemCertSize {
+		t.Fatalf("did not load system cert pool")
+	}
+}
+
+func TestWithAdditionalAuthorityFromFile(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	ca, err := certtest.BuildCA("tlsconfig")
+	if err != nil {
+		t.Fatalf("failed to build CA: %v", err)
+	}
+	caFile, err := writeCAToTempFile(tempDir, ca)
+	if err != nil {
+		t.Fatalf("failed to write CA file: %v", err)
+	}
+
+	config := tlsconfig.Config{}
+	tlsConfig, err := config.Client(tlsconfig.WithSystemCertPool(), tlsconfig.WithAdditionalAuthorityFromFile(caFile))
+	if err != nil {
+		t.Fatalf("failed to create system cert pool: %v", err)
+	}
+	systemCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("failed to load system cert pool: %v", err)
+	}
+	systemCertSize := len(systemCertPool.Subjects())
+	if len(tlsConfig.RootCAs.Subjects()) != systemCertSize+1 {
+		t.Fatalf("did not load system cert pool")
+	}
 }
 
 func TestServerName(t *testing.T) {

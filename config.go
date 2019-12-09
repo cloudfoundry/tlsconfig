@@ -171,22 +171,49 @@ func WithAuthority(authority *x509.CertPool) ClientOption {
 	}
 }
 
-// WithAuthorityFromFile makes the client verify that the server presents an identity
-// that can be validated by the CA file provided.
-func WithAuthorityFromFile(caPath string) ClientOption {
+// WithSystemCertPool creates a system cert pool.
+func WithSystemCertPool() ClientOption {
+	return func(c *tls.Config) error {
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil {
+			return fmt.Errorf("unable to load system cert pool: %v", err)
+		}
+		c.RootCAs = caCertPool
+		return nil
+	}
+}
+
+// WithEmptyCertPool creates an empty cert pool.
+func WithEmptyCertPool() ClientOption {
+	return func(c *tls.Config) error {
+		c.RootCAs = x509.NewCertPool()
+		return nil
+	}
+}
+
+// WithAdditionalAuthorityFromFile adds a certificate to an existing cert pool.
+func WithAdditionalAuthorityFromFile(caPath string) ClientOption {
 	return func(c *tls.Config) error {
 		caBytes, err := ioutil.ReadFile(caPath)
 		if err != nil {
 			return fmt.Errorf("failed to read file %s: %s", caPath, err.Error())
 		}
-
-		caCertPool := x509.NewCertPool()
-		if ok := caCertPool.AppendCertsFromPEM(caBytes); !ok {
+		if c.RootCAs == nil {
+			return fmt.Errorf("cannot add to empty cert pool")
+		}
+		if ok := c.RootCAs.AppendCertsFromPEM(caBytes); !ok {
 			return fmt.Errorf("unable to load CA certificate at %s", caPath)
 		}
-
-		c.RootCAs = caCertPool
 		return nil
+	}
+}
+
+// WithAuthorityFromFile makes the client verify that the server presents an identity
+// that can be validated by the CA file provided.
+func WithAuthorityFromFile(caPath string) ClientOption {
+	return func(c *tls.Config) error {
+		WithEmptyCertPool()(c)
+		return WithAdditionalAuthorityFromFile(caPath)(c)
 	}
 }
 
