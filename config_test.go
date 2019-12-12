@@ -323,7 +323,7 @@ func TestLoadKeypairFails(t *testing.T) {
 			name:      "cert expired",
 			certFile:  expiredCertFile,
 			keyFile:   expiredKeyFile,
-			errPrefix: "failed to load keypair: the certificate has expired or is not yet valid",
+			errPrefix: "failed to load keypair: certificate has expired",
 		},
 	}
 
@@ -354,7 +354,7 @@ func TestLoadKeypairFails(t *testing.T) {
 				t.Fatal("building config should have errored")
 			}
 			if !strings.HasPrefix(br.err.Error(), br.expectedErrPrefix) {
-				t.Fatalf("unexpected error prefix returned; have: %v, want: '%s'", br.err, br.expectedErrPrefix)
+				t.Fatalf("unexpected error prefix returned; have: %q, want: %q", br.err, br.expectedErrPrefix)
 			}
 		})
 	}
