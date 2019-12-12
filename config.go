@@ -107,7 +107,7 @@ func WithInternalServiceDefaults() TLSOption {
 func WithIdentity(cert tls.Certificate) TLSOption {
 	return func(c *tls.Config) error {
 		fail := func(err error) error {
-			return fmt.Errorf("failed to load keypair: %s", err.Error())
+			return fmt.Errorf("failed to load keypair: %w", err)
 		}
 		c.Certificates = []tls.Certificate{cert}
 		x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
@@ -128,7 +128,7 @@ func WithIdentityFromFile(certPath string, keyPath string) TLSOption {
 	return func(c *tls.Config) error {
 		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
-			return fmt.Errorf("failed to load keypair: %s", err.Error())
+			return fmt.Errorf("failed to load keypair: %w", err)
 		}
 		return WithIdentity(cert)(c)
 	}
@@ -150,7 +150,7 @@ func WithClientAuthenticationFromFile(caPath string) ServerOption {
 	return func(c *tls.Config) error {
 		caBytes, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return fmt.Errorf("failed to read file %s: %s", caPath, err.Error())
+			return fmt.Errorf("failed to read file %s: %w", caPath, err)
 		}
 
 		caCertPool := x509.NewCertPool()
@@ -177,7 +177,7 @@ func WithAuthorityFromFile(caPath string) ClientOption {
 	return func(c *tls.Config) error {
 		caBytes, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return fmt.Errorf("failed to read file %s: %s", caPath, err.Error())
+			return fmt.Errorf("failed to read file %s: %w", caPath, err)
 		}
 
 		caCertPool := x509.NewCertPool()

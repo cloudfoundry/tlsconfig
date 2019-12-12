@@ -454,17 +454,17 @@ func testClientServerTLSConnection(t *testing.T, clientConf, serverConf *tls.Con
 func writeCAToTempFile(tempDir string, ca *certtest.Authority) (string, error) {
 	caBytes, err := ca.CertificatePEM()
 	if err != nil {
-		return "", fmt.Errorf("failed to get CA PEM encoding: %s", err)
+		return "", fmt.Errorf("failed to get CA PEM encoding: %w", err)
 	}
 
 	caFile, err := ioutil.TempFile(tempDir, "CA")
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp CA file: %s", err)
+		return "", fmt.Errorf("failed to create temp CA file: %w", err)
 	}
 	defer caFile.Close()
 
 	if err := ioutil.WriteFile(caFile.Name(), caBytes, 0666); err != nil {
-		return "", fmt.Errorf("failed to write CA file: %s", err)
+		return "", fmt.Errorf("failed to write CA file: %w", err)
 	}
 
 	return caFile.Name(), nil
@@ -481,32 +481,32 @@ func generateKeypairToTempFilesFromCA(tempDir string, ca *certtest.Authority, ex
 		cert, err = ca.BuildSignedCertificate("cert")
 	}
 	if err != nil {
-		return "", "", fmt.Errorf("failed to make certificate keypair: %s", err)
+		return "", "", fmt.Errorf("failed to make certificate keypair: %w", err)
 	}
 
 	certBytes, keyBytes, err := cert.CertificatePEMAndPrivateKey()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get cert and key bytes: %s", err)
+		return "", "", fmt.Errorf("failed to get cert and key bytes: %w", err)
 	}
 
 	keyFile, err := ioutil.TempFile(tempDir, "key")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create temp key file: %s", err)
+		return "", "", fmt.Errorf("failed to create temp key file: %w", err)
 	}
 	defer keyFile.Close()
 
 	if err := ioutil.WriteFile(keyFile.Name(), keyBytes, 0666); err != nil {
-		return "", "", fmt.Errorf("failed to write key file: %s", err)
+		return "", "", fmt.Errorf("failed to write key file: %w", err)
 	}
 
 	certFile, err := ioutil.TempFile(tempDir, "cert")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create temp cert file: %s", err)
+		return "", "", fmt.Errorf("failed to create temp cert file: %w", err)
 	}
 	defer certFile.Close()
 
 	if err := ioutil.WriteFile(certFile.Name(), certBytes, 0666); err != nil {
-		return "", "", fmt.Errorf("failed to write cert file: %s", err)
+		return "", "", fmt.Errorf("failed to write cert file: %w", err)
 	}
 
 	return certFile.Name(), keyFile.Name(), nil
