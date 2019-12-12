@@ -67,6 +67,10 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("failed to build server config: %v", err)
 	}
 
+	if serverConf.NameToCertificate == nil {
+		t.Error("tls.Config.NameToCertificate should not be nil")
+	}
+
 	clientConf, err := tlsconfig.Build(
 		tlsconfig.WithIdentity(clientTLSCrt),
 	).Client(
@@ -74,6 +78,10 @@ func TestE2E(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatalf("failed to build client config: %v", err)
+	}
+
+	if clientConf.NameToCertificate == nil {
+		t.Error("tls.Config.NameToCertificate should not be nil")
 	}
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
