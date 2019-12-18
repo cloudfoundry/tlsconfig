@@ -437,7 +437,7 @@ func TestLoadCAFails(t *testing.T) {
 		{name: "CA cert file missing (server)", err: serverCAErr},
 	}
 
-	errStr := "failed to read file"
+	errStr := "failed to read certificate(s) at path"
 	for _, br := range buildResults {
 		br := br // capture variable
 		t.Run(br.name, func(t *testing.T) {
@@ -467,15 +467,27 @@ func TestCAInvalidFails(t *testing.T) {
 	}
 	defer os.Remove(invalidCAFile.Name())
 
-	_, clientCAErr := tlsconfig.Build().Client(tlsconfig.WithAuthorityFromFile(invalidCAFile.Name()))
-	_, serverCAErr := tlsconfig.Build().Server(tlsconfig.WithClientAuthenticationFromFile(invalidCAFile.Name()))
+	_, clientCAErr := tlsconfig.Build().Client(
+		tlsconfig.WithAuthorityBuilder(
+			tlsconfig.FromEmptyPool(
+				tlsconfig.WithCertsFromFile(invalidCAFile.Name()),
+			),
+		),
+	)
+	_, serverCAErr := tlsconfig.Build().Server(
+		tlsconfig.WithClientAuthenticationBuilder(
+			tlsconfig.FromEmptyPool(
+				tlsconfig.WithCertsFromFile(invalidCAFile.Name()),
+			),
+		),
+	)
 
 	buildResults := []buildResult{
 		{name: "CA cert file invalid (client)", err: clientCAErr},
 		{name: "CA cert file invalid (server)", err: serverCAErr},
 	}
 
-	errStr := "unable to load CA certificate at"
+	errStr := "no valid certificates read from file"
 	for _, br := range buildResults {
 		br := br // capture variable
 		t.Run(br.name, func(t *testing.T) {
