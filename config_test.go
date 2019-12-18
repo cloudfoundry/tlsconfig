@@ -274,6 +274,72 @@ func TestInternalDefaults(t *testing.T) {
 	}
 }
 
+func TestExternalDefaults(t *testing.T) {
+	log.SetOutput(ioutil.Discard)
+	t.Parallel()
+
+	clientConfig, err := tlsconfig.Build(tlsconfig.WithExternalServiceDefaults()).Client()
+	if err != nil {
+		t.Fatalf("failed to build client config: %v", err)
+	}
+	serverConfig, err := tlsconfig.Build(tlsconfig.WithExternalServiceDefaults()).Server()
+	if err != nil {
+		t.Fatalf("failed to build server config: %v", err)
+	}
+
+	var tcs = []struct {
+		name   string
+		config *tls.Config
+	}{
+		{
+			name:   "external (client)",
+			config: clientConfig,
+		},
+		{
+			name:   "external (server)",
+			config: serverConfig,
+		},
+	}
+
+	for _, tc := range tcs {
+		tc := tc // capture variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := tc.config
+
+			if have, want := config.PreferServerCipherSuites, false; have != want {
+				t.Errorf("expected server cipher suites not to be preferred; have: %t", have)
+			}
+
+			if have, want := config.MinVersion, uint16(tls.VersionTLS12); have != want {
+				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
+			}
+
+			if have, want := config.MaxVersion, uint16(tls.VersionTLS12); have != want {
+				t.Errorf("expected TLS 1.2 to be the maximum version; want: %v, have: %v", want, have)
+			}
+
+			wantSuites := []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			}
+			if have, want := config.CipherSuites, wantSuites; !reflect.DeepEqual(have, want) {
+				t.Errorf("expected a different set of ciphersuites; want: %v, have: %v", want, have)
+			}
+
+			h2Ciphersuite := tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+			if !contains(config.CipherSuites, h2Ciphersuite) {
+				// https://http2.github.io/http2-spec/#rfc.section.9.2.2
+				t.Errorf("expected the http2 required ciphersuite (%v) to be present; have: %v", h2Ciphersuite, config.CipherSuites)
+			}
+		})
+	}
+}
+
 func TestLoadKeypairFails(t *testing.T) {
 	t.Parallel()
 
