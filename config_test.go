@@ -323,8 +323,8 @@ func TestExternalDefaults(t *testing.T) {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
 			}
 
-			if have, want := config.MaxVersion, uint16(tls.VersionTLS12); have != want {
-				t.Errorf("expected TLS 1.2 to be the maximum version; want: %v, have: %v", want, have)
+			if have, want := config.MaxVersion, uint16(tls.VersionTLS13); have != want {
+				t.Errorf("expected TLS 1.3 to be the maximum version; want: %v, have: %v", want, have)
 			}
 
 			wantSuites := []uint16{
@@ -334,6 +334,10 @@ func TestExternalDefaults(t *testing.T) {
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+
+				tls.TLS_AES_128_GCM_SHA256,
+				tls.TLS_AES_256_GCM_SHA384,
+				tls.TLS_CHACHA20_POLY1305_SHA256,
 			}
 			if have, want := config.CipherSuites, wantSuites; !reflect.DeepEqual(have, want) {
 				t.Errorf("expected a different set of ciphersuites; want: %v, have: %v", want, have)
