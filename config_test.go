@@ -261,8 +261,8 @@ func TestInternalDefaults(t *testing.T) {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
 			}
 
-			if have, want := config.MaxVersion, uint16(tls.VersionTLS12); have != want {
-				t.Errorf("expected TLS 1.2 to be the maximum version; want: %v, have: %v", want, have)
+			if have, want := config.MaxVersion, uint16(tls.VersionTLS13); have != want {
+				t.Errorf("expected TLS 1.3 to be the maximum version; want: %v, have: %v", want, have)
 			}
 
 			wantSuites := []uint16{
@@ -323,8 +323,8 @@ func TestExternalDefaults(t *testing.T) {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
 			}
 
-			if have, want := config.MaxVersion, uint16(tls.VersionTLS12); have != want {
-				t.Errorf("expected TLS 1.2 to be the maximum version; want: %v, have: %v", want, have)
+			if have, want := config.MaxVersion, uint16(tls.VersionTLS13); have != want {
+				t.Errorf("expected TLS 1.3 to be the maximum version; want: %v, have: %v", want, have)
 			}
 
 			wantSuites := []uint16{
