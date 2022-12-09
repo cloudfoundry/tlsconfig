@@ -1,3 +1,0 @@
-# github.com/square/certstrap v1.2.0
-## explicit
-github.com/square/certstrap/pkix
