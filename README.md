@@ -37,4 +37,4 @@ This module is not currently versioned. Whatever is on the `main` branch is cons
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
