@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -88,7 +88,7 @@ func TestE2E(t *testing.T) {
 }
 
 func TestE2EFromFile(t *testing.T) {
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestServerName(t *testing.T) {
 }
 
 func TestInternalDefaults(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	t.Parallel()
 
 	clientConfig, err := tlsconfig.Build(tlsconfig.WithInternalServiceDefaults()).Client()
@@ -283,7 +283,7 @@ func TestInternalDefaults(t *testing.T) {
 }
 
 func TestExternalDefaults(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 	t.Parallel()
 
 	clientConfig, err := tlsconfig.Build(tlsconfig.WithExternalServiceDefaults()).Client()
@@ -351,7 +351,7 @@ func TestExternalDefaults(t *testing.T) {
 func TestLoadKeypairFails(t *testing.T) {
 	t.Parallel()
 
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)
 	}
@@ -368,13 +368,13 @@ func TestLoadKeypairFails(t *testing.T) {
 	}
 
 	// generate file invalid for use as cert or key
-	invalidFile, err := ioutil.TempFile(tempDir, "invalid")
+	invalidFile, err := os.CreateTemp(tempDir, "invalid")
 	if err != nil {
 		t.Fatalf("failed to create temp invalid-key: %v", err)
 	}
 	defer invalidFile.Close()
 
-	if err := ioutil.WriteFile(invalidFile.Name(), []byte("invalid"), 0666); err != nil {
+	if err := os.WriteFile(invalidFile.Name(), []byte("invalid"), 0666); err != nil {
 		t.Fatalf("failed to write invalid file: %v", err)
 	}
 
@@ -464,13 +464,13 @@ func TestLoadCAFails(t *testing.T) {
 func TestCAInvalidFails(t *testing.T) {
 	t.Parallel()
 
-	invalidCAFile, err := ioutil.TempFile("", "invalid-CA")
+	invalidCAFile, err := os.CreateTemp("", "invalid-CA")
 	if err != nil {
 		t.Fatalf("failed to create temp invalid-CA: %v", err)
 	}
 	defer invalidCAFile.Close()
 
-	if err := ioutil.WriteFile(invalidCAFile.Name(), []byte("invalid"), 0666); err != nil {
+	if err := os.WriteFile(invalidCAFile.Name(), []byte("invalid"), 0666); err != nil {
 		t.Fatalf("failed to write invalid-CA file: %v", err)
 	}
 	defer os.Remove(invalidCAFile.Name())
@@ -526,7 +526,7 @@ func testClientServerTLSConnection(t *testing.T, clientConf, serverConf *tls.Con
 	if err != nil {
 		t.Fatalf("failed to make request: %v", err)
 	}
-	bs, err := ioutil.ReadAll(res.Body)
+	bs, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("failed to read body: %v", err)
 	}
@@ -543,13 +543,13 @@ func writeCAToTempFile(tempDir string, ca *certtest.Authority) (string, error) {
 		return "", fmt.Errorf("failed to get CA PEM encoding: %s", err)
 	}
 
-	caFile, err := ioutil.TempFile(tempDir, "CA")
+	caFile, err := os.CreateTemp(tempDir, "CA")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp CA file: %s", err)
 	}
 	defer caFile.Close()
 
-	if err := ioutil.WriteFile(caFile.Name(), caBytes, 0666); err != nil {
+	if err := os.WriteFile(caFile.Name(), caBytes, 0666); err != nil {
 		return "", fmt.Errorf("failed to write CA file: %s", err)
 	}
 
@@ -575,23 +575,23 @@ func generateKeypairToTempFilesFromCA(tempDir string, ca *certtest.Authority, ex
 		return "", "", fmt.Errorf("failed to get cert and key bytes: %s", err)
 	}
 
-	keyFile, err := ioutil.TempFile(tempDir, "key")
+	keyFile, err := os.CreateTemp(tempDir, "key")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create temp key file: %s", err)
 	}
 	defer keyFile.Close()
 
-	if err := ioutil.WriteFile(keyFile.Name(), keyBytes, 0666); err != nil {
+	if err := os.WriteFile(keyFile.Name(), keyBytes, 0666); err != nil {
 		return "", "", fmt.Errorf("failed to write key file: %s", err)
 	}
 
-	certFile, err := ioutil.TempFile(tempDir, "cert")
+	certFile, err := os.CreateTemp(tempDir, "cert")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create temp cert file: %s", err)
 	}
 	defer certFile.Close()
 
-	if err := ioutil.WriteFile(certFile.Name(), certBytes, 0666); err != nil {
+	if err := os.WriteFile(certFile.Name(), certBytes, 0666); err != nil {
 		return "", "", fmt.Errorf("failed to write cert file: %s", err)
 	}
 

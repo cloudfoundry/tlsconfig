@@ -1,7 +1,6 @@
 package tlsconfig
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -90,7 +89,7 @@ func TestLoadCertsFromFile(t *testing.T) {
 		t.Fatalf("failed to PEM-encode certificate: %s", err)
 	}
 
-	f, err := ioutil.TempFile("", "tlsconfig_authority")
+	f, err := os.CreateTemp("", "tlsconfig_authority")
 	if err != nil {
 		t.Fatalf("failed to create temporary certificate file: %s", err)
 	}
