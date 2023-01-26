@@ -253,10 +253,6 @@ func TestInternalDefaults(t *testing.T) {
 			t.Parallel()
 			config := tc.config
 
-			if have, want := config.PreferServerCipherSuites, true; have != want {
-				t.Errorf("expected server cipher suites to be preferred; have: %t", have)
-			}
-
 			if have, want := config.MinVersion, uint16(tls.VersionTLS12); have != want {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
 			}
@@ -314,10 +310,6 @@ func TestExternalDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			config := tc.config
-
-			if have, want := config.PreferServerCipherSuites, false; have != want {
-				t.Errorf("expected server cipher suites not to be preferred; have: %t", have)
-			}
 
 			if have, want := config.MinVersion, uint16(tls.VersionTLS12); have != want {
 				t.Errorf("expected TLS 1.2 to be the minimum version; want: %v, have: %v", want, have)
