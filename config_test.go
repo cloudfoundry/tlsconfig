@@ -67,7 +67,7 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("failed to build server config: %v", err)
 	}
 
-	if serverConf.NameToCertificate == nil {
+	if serverConf.NameToCertificate == nil { //nolint:staticcheck
 		t.Error("tls.Config.NameToCertificate should not be nil")
 	}
 
@@ -80,7 +80,7 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("failed to build client config: %v", err)
 	}
 
-	if clientConf.NameToCertificate == nil {
+	if clientConf.NameToCertificate == nil { //nolint:staticcheck
 		t.Error("tls.Config.NameToCertificate should not be nil")
 	}
 
