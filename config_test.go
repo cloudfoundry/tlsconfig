@@ -554,7 +554,7 @@ func generateKeypairToTempFilesFromCA(tempDir string, ca *certtest.Authority, ex
 		err  error
 	)
 	if expired {
-		cert, err = ca.BuildSignedCertificateWithExpiry("cert", time.Now().Add(-10000))
+		cert, err = ca.BuildSignedCertificate("cert", certtest.WithExpiry(time.Now().Add(-10000)))
 	} else {
 		cert, err = ca.BuildSignedCertificate("cert")
 	}
