@@ -1,6 +1,7 @@
 package tlsconfig
 
 import (
+	"crypto/x509"
 	"os"
 	"strings"
 	"testing"
@@ -15,8 +16,8 @@ func TestEmptyPool(t *testing.T) {
 		t.Fatalf("unexpected error when building empty pool: %q", err)
 	}
 
-	if size := len(pool.Subjects()); size != 0 {
-		t.Errorf("expected pool to be empty but it had %d certificates", size)
+	if !pool.Equal(x509.NewCertPool()) {
+		t.Errorf("expected pool to be empty")
 	}
 }
 
@@ -27,8 +28,12 @@ func TestSystemPool(t *testing.T) {
 		t.Fatalf("unexpected error when building system pool: %q", err)
 	}
 
-	if size := len(pool.Subjects()); size == 0 {
-		t.Error("expected pool to contain something but it did not")
+	systemPool, err := x509.SystemCertPool()
+	if err != nil {
+		t.Fatalf("unexpected error when getting system pool: %q", err)
+	}
+	if !pool.Equal(systemPool) {
+		t.Errorf("expected pool to equal %#v, got %#v", systemPool, pool)
 	}
 }
 
@@ -52,11 +57,11 @@ func TestWithCert(t *testing.T) {
 		t.Fatalf("unexpected error when building pool: %q", err)
 	}
 
-	if want, have := 1, len(pool.Subjects()); have != want {
+	if want, have := 1, len(pool.Subjects()); have != want { //nolint:staticcheck
 		t.Errorf("expected pool to have size %d but it had %d certificates", want, have)
 	}
 
-	if s, subj := "theauthority", string(pool.Subjects()[0]); !strings.Contains(subj, s) {
+	if s, subj := "theauthority", string(pool.Subjects()[0]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
 }
@@ -115,15 +120,15 @@ func TestLoadCertsFromFile(t *testing.T) {
 	}
 
 	// We add 2 certificates to the pool from the file.
-	if want, have := 2, len(pool.Subjects()); have != want {
+	if want, have := 2, len(pool.Subjects()); have != want { //nolint:staticcheck
 		t.Errorf("expected pool to have size %d but it had %d certificates", want, have)
 	}
 
-	if s, subj := "cert1", string(pool.Subjects()[0]); !strings.Contains(subj, s) {
+	if s, subj := "cert1", string(pool.Subjects()[0]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
 
-	if s, subj := "cert2", string(pool.Subjects()[1]); !strings.Contains(subj, s) {
+	if s, subj := "cert2", string(pool.Subjects()[1]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
 }
