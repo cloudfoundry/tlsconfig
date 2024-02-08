@@ -67,10 +67,6 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("failed to build server config: %v", err)
 	}
 
-	if serverConf.NameToCertificate == nil { //nolint:staticcheck
-		t.Error("tls.Config.NameToCertificate should not be nil")
-	}
-
 	clientConf, err := tlsconfig.Build(
 		tlsconfig.WithIdentity(clientTLSCrt),
 	).Client(
@@ -80,11 +76,14 @@ func TestE2E(t *testing.T) {
 		t.Fatalf("failed to build client config: %v", err)
 	}
 
-	if clientConf.NameToCertificate == nil { //nolint:staticcheck
-		t.Error("tls.Config.NameToCertificate should not be nil")
-	}
-
 	testClientServerTLSConnection(t, clientConf, serverConf)
+
+	if clientConf.InsecureSkipVerify != false {
+	   t.Error("failed, expected certificate validation")
+	}
+	if len(clientConf.Certificates) == 0 {
+	   t.Error("failed, expected client to negotiate certificate")
+	}
 }
 
 func TestE2EFromFile(t *testing.T) {
@@ -136,6 +135,13 @@ func TestE2EFromFile(t *testing.T) {
 	}
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
+
+	if clientConf.InsecureSkipVerify != false {
+	   t.Error("failed, expected certificate validation")
+	}
+	if len(clientConf.Certificates) == 0 {
+	   t.Error("failed, expected client to negotiate certificate")
+	}
 }
 
 func TestServerName(t *testing.T) {
