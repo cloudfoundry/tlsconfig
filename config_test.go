@@ -78,6 +78,7 @@ func TestE2E(t *testing.T) {
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
 
+	// found certificate in list, and negotiated TLS successfully
 	if clientConf.InsecureSkipVerify != false {
 	   t.Error("failed, expected certificate validation to be enabled")
 	}
@@ -136,6 +137,7 @@ func TestE2EFromFile(t *testing.T) {
 
 	testClientServerTLSConnection(t, clientConf, serverConf)
 
+	// found certificate in list, and negotiated TLS successfully
 	if clientConf.InsecureSkipVerify != false {
 	   t.Error("failed, expected certificate validation to be enabled")
 	}
