@@ -80,10 +80,10 @@ func TestE2E(t *testing.T) {
 
 	// found certificate in list, and negotiated TLS successfully
 	if clientConf.InsecureSkipVerify != false {
-	   t.Error("failed, expected certificate validation to be enabled")
+		t.Error("failed, expected certificate validation to be enabled")
 	}
 	if len(clientConf.Certificates) == 0 {
-	   t.Error("failed, expected client to negotiate certificate")
+		t.Error("failed, expected client to negotiate certificate")
 	}
 }
 
@@ -139,10 +139,10 @@ func TestE2EFromFile(t *testing.T) {
 
 	// found certificate in list, and negotiated TLS successfully
 	if clientConf.InsecureSkipVerify != false {
-	   t.Error("failed, expected certificate validation to be enabled")
+		t.Error("failed, expected certificate validation to be enabled")
 	}
 	if len(clientConf.Certificates) == 0 {
-	   t.Error("failed, expected client to negotiate certificate")
+		t.Error("failed, expected client to negotiate certificate")
 	}
 }
 
