@@ -57,10 +57,12 @@ func TestWithCert(t *testing.T) {
 		t.Fatalf("unexpected error when building pool: %q", err)
 	}
 
+	//lint:ignore SA1019 - we are not using Subject() based on the system pool
 	if want, have := 1, len(pool.Subjects()); have != want { //nolint:staticcheck
 		t.Errorf("expected pool to have size %d but it had %d certificates", want, have)
 	}
 
+	//lint:ignore SA1019 - we are not using Subject() based on the system pool
 	if s, subj := "theauthority", string(pool.Subjects()[0]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
@@ -120,14 +122,17 @@ func TestLoadCertsFromFile(t *testing.T) {
 	}
 
 	// We add 2 certificates to the pool from the file.
+	//lint:ignore SA1019 - we are not using Subject() based on the system pool
 	if want, have := 2, len(pool.Subjects()); have != want { //nolint:staticcheck
 		t.Errorf("expected pool to have size %d but it had %d certificates", want, have)
 	}
 
+	//lint:ignore SA1019 - we are not using Subject() based on the system pool
 	if s, subj := "cert1", string(pool.Subjects()[0]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
 
+	//lint:ignore SA1019 - we are not using Subject() based on the system pool
 	if s, subj := "cert2", string(pool.Subjects()[1]); !strings.Contains(subj, s) { //nolint:staticcheck
 		t.Errorf("pool should have contained cert with subject %q but it was acutally %q", s, subj)
 	}
