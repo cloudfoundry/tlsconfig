@@ -5,8 +5,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/smallstep/assert v0.0.0-20200723003110-82e2b9b3b262 h1:unQFBIznI+VYD1/1fApl1A+9VcBk+9dcqGfnePY87LY=
 github.com/square/certstrap v1.3.0 h1:N9P0ZRA+DjT8pq5fGDj0z3FjafRKnBDypP0QHpMlaAk=
 github.com/square/certstrap v1.3.0/go.mod h1:wGZo9eE1B7WX2GKBn0htJ+B3OuRl2UsdCFySNooy9hU=
-go.step.sm/crypto v0.43.1 h1:18Z/M49SnFDPXvFbfoN/ugE1i0J7phLWARhSQs/XSDI=
-go.step.sm/crypto v0.43.1/go.mod h1:9n90D/SWjH1hTyQn1hgviUGyK8YRv743S8UZHYbt4BU=
+go.step.sm/crypto v0.44.1 h1:8ouq8JEYXVxSymuVuX54Ilh5X2dqyjgOGGXyPeXDzV8=
+go.step.sm/crypto v0.44.1/go.mod h1:hKl+QUIS4oJFRwQBRcVPz8NOYhRaoOJmwXHd2Y3XTA0=
 golang.org/x/crypto v0.21.0 h1:X31++rzVUdKhX5sWmSOFZxx8UW/ldWx55cbf08iNAMA=
 golang.org/x/crypto v0.21.0/go.mod h1:0BP7YvVV9gBbVKyeTG0Gyn+gZm94bibOW5BjDEYAOMs=
 golang.org/x/sys v0.18.0 h1:DBdB3niSjOA/O0blCZBqDefyWNYveAYMNF1Wum0DYQ4=
