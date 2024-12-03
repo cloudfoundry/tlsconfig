@@ -12,8 +12,8 @@ github.com/square/certstrap v1.3.0 h1:N9P0ZRA+DjT8pq5fGDj0z3FjafRKnBDypP0QHpMlaA
 github.com/square/certstrap v1.3.0/go.mod h1:wGZo9eE1B7WX2GKBn0htJ+B3OuRl2UsdCFySNooy9hU=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
-go.step.sm/crypto v0.54.2 h1:3LSA5nYDQvcd484OSx7xsS3XDqQ7/WZjVqvq0+a0fWc=
-go.step.sm/crypto v0.54.2/go.mod h1:1+OjUozd5aA3TkBJfr5Aobd6vNt9F70n1DagcoBh3Pc=
+go.step.sm/crypto v0.55.0 h1:575Q7NahuM/ZRxUVN1GkO2e1aDYQJqIIg+nbfOajQJk=
+go.step.sm/crypto v0.55.0/go.mod h1:MgEmD1lgwsuzZwTgI0GwKapHjKVEQLVggSvHuf3bYnU=
 golang.org/x/crypto v0.29.0 h1:L5SG1JTTXupVV3n6sUqMTeWbjAyfPwoda2DLX8J8FrQ=
 golang.org/x/crypto v0.29.0/go.mod h1:+F4F4N5hv6v38hfeYwTdx20oUvLLc+QfrE9Ax9HtgRg=
 golang.org/x/sys v0.27.0 h1:wBqf8DvsY9Y/2P8gAfPDEYNuS30J4lPHJxXSb/nJZ+s=
