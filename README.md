@@ -1,7 +1,5 @@
 # tlsconfig
 
-[![Go Report
-Card](https://goreportcard.com/badge/code.cloudfoundry.org/tlsconfig)](https://goreportcard.com/report/code.cloudfoundry.org/tlsconfig)
 [![Go
 Reference](https://pkg.go.dev/badge/code.cloudfoundry.org/tlsconfig.svg)](https://pkg.go.dev/code.cloudfoundry.org/tlsconfig)
 
